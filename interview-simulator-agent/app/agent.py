@@ -50,8 +50,51 @@ def get_weather(query: str) -> dict:
     return {"output": "It's 90 degrees and sunny."}
 
 
+def analyze_job_vacancy(job_description: str) -> dict:
+    """Analyzes a job vacancy description and extracts structured information for interview preparation.
+
+    Args:
+        job_description: The job posting or vacancy description text to analyze.
+
+    Returns:
+        A dictionary containing structured information about the job including:
+        - Basic job details (title, company, location, etc.)
+        - Required and preferred skills
+        - Key responsibilities
+        - Interview context for question generation
+    """
+    try:
+        from .agents.vacancy_agent import analyze_job_vacancy_sync
+
+        # Use the synchronous VacancyAgent
+        result = analyze_job_vacancy_sync(job_description)
+
+        if result.get("success"):
+            vacancy_info = result.get("vacancy_info", {})
+            return {
+                "output": f"Successfully analyzed job posting for: {vacancy_info.get('job_title', 'Unknown Position')}",
+                "vacancy_info": vacancy_info,
+                "interview_context": result.get("interview_context", {}),
+                "summary": result.get("summary", {})
+            }
+        else:
+            return {
+                "output": f"Error analyzing job vacancy: {result.get('error', 'Unknown error')}",
+                "error": result.get('error', 'Unknown error')
+            }
+
+    except Exception as e:
+        return {
+            "output": f"Error analyzing job vacancy: {str(e)}",
+            "error": str(e)
+        }
+
+
 # Configure tools available to the agent and live connection
-tool_functions = {"get_weather": get_weather}
+tool_functions = {
+    "get_weather": get_weather,
+    "analyze_job_vacancy": analyze_job_vacancy
+}
 
 live_connect_config = types.LiveConnectConfig(
     response_modalities=[types.Modality.AUDIO],
@@ -59,7 +102,20 @@ live_connect_config = types.LiveConnectConfig(
     system_instruction=types.Content(
         parts=[
             types.Part(
-                text="""You are a helpful AI assistant designed to provide accurate and useful information. You are able to accommodate different languages and tones of voice."""
+                text="""You are an interview simulator agent powered by advanced AI capabilities. Your primary function is to help users practice job interviews and improve their interview skills.
+
+Key Capabilities:
+1. Job Analysis: You can analyze job descriptions using the analyze_job_vacancy tool to extract structured information about positions, including required skills, responsibilities, company culture, and more.
+
+2. Interview Simulation: Based on analyzed job postings, you can conduct realistic interview simulations with role-appropriate questions covering:
+   - Technical skills assessment
+   - Behavioral questions (STAR method)
+   - Company culture fit
+   - Role-specific scenarios
+
+3. Feedback and Coaching: Provide constructive feedback on responses and suggest improvements for interview performance.
+
+When users provide job postings, use the analyze_job_vacancy tool first to understand the role requirements, then offer to simulate an interview based on that analysis. You are able to accommodate different languages and tones of voice, and should maintain a professional yet encouraging demeanor throughout the interview process."""
             )
         ]
     ),
