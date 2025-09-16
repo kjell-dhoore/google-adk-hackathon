@@ -228,6 +228,8 @@ def collect_feedback(feedback: Feedback) -> dict[str, str]:
     return {"status": "success"}
 
 
+
+
 @app.get("/")
 async def serve_frontend_root() -> FileResponse:
     """Serve the frontend index.html at the root path."""

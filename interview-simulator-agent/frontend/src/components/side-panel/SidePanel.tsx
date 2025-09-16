@@ -96,7 +96,8 @@ function SidePanel({
     label: string;
   } | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  
+
+
   // Control states
   const videoStreams = [useWebcam(), useScreenCapture()];
   const [activeVideoStream, setActiveVideoStream] = useState<MediaStream | null>(null);
@@ -111,6 +112,9 @@ function SidePanel({
   const [feedbackScore, setFeedbackScore] = useState<number>(10);
   const [feedbackText, setFeedbackText] = useState<string>("");
   const [sendFeedback, setShowFeedback] = useState(false);
+
+  // Tool activity tracking
+  const [activeToolCall, setActiveToolCall] = useState<string | null>(null);
 
   useEffect(() => {
     if (!connected && connectButtonRef.current) {
@@ -246,6 +250,30 @@ function SidePanel({
     };
   }, [client, log]);
 
+  // Listen for tool activity
+  useEffect(() => {
+    const handleLog = (logEntry: any) => {
+      // Track tool calls
+      if (logEntry.type === 'tool-call' && logEntry.toolCall?.function_calls?.length > 0) {
+        const toolName = logEntry.toolCall.function_calls[0].name;
+        if (toolName === 'analyze_job_vacancy') {
+          setActiveToolCall('VacancyAgent');
+        } else {
+          setActiveToolCall(toolName);
+        }
+      }
+      // Clear tool call when response is received
+      if (logEntry.type === 'tool-response') {
+        setTimeout(() => setActiveToolCall(null), 1500); // Keep visible for 1.5s after completion
+      }
+    };
+
+    client.on("log", handleLog);
+    return () => {
+      client.off("log", handleLog);
+    };
+  }, [client]);
+
   const handleSubmit = () => {
     client.send([{ text: textInput }]);
 
@@ -255,9 +283,17 @@ function SidePanel({
     }
   };
 
+
   return (
-    <div className={`side-panel ${open ? "open" : ""}`}>
-      <canvas style={{ display: "none" }} ref={renderCanvasRef} />
+    <>
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 0.4; }
+          50% { opacity: 1; }
+        }
+      `}</style>
+      <div className={`side-panel ${open ? "open" : ""}`}>
+        <canvas style={{ display: "none" }} ref={renderCanvasRef} />
       <header className="top">
         <h2>Console</h2>
         {open ? (
@@ -271,6 +307,7 @@ function SidePanel({
         )}
       </header>
       
+
       {/* Connection Settings Section */}
       <section className="connection-settings">
         <button 
@@ -368,6 +405,35 @@ function SidePanel({
             {connected ? "Streaming" : "Disconnected"}
           </span>
         </div>
+
+        {/* Tool Activity Indicator */}
+        {activeToolCall && (
+          <div style={{
+            margin: '8px 0',
+            padding: '8px 12px',
+            backgroundColor: 'var(--brand-blue-10)',
+            border: '1px solid var(--brand-blue-30)',
+            borderRadius: '6px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <div style={{
+              width: '12px',
+              height: '12px',
+              backgroundColor: 'var(--brand-blue)',
+              borderRadius: '50%',
+              animation: 'pulse 1.5s ease-in-out infinite'
+            }} />
+            <span style={{
+              fontSize: '12px',
+              color: 'var(--brand-blue)',
+              fontWeight: '500'
+            }}>
+              🔧 {activeToolCall} is working...
+            </span>
+          </div>
+        )}
       </section>
 
       <section className="indicators">
@@ -504,6 +570,7 @@ function SidePanel({
         </div>
       )}
     </div>
+    </>
   );
 }
 
