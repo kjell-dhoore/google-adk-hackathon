@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import "./App.scss";
 import { LiveAPIProvider } from "./contexts/LiveAPIContext";
 import SidePanel from "./components/side-panel/SidePanel";
@@ -25,15 +25,38 @@ const isDevelopment = window.location.port === '8501';
 const defaultHost = isDevelopment ? `${window.location.hostname}:8000` : window.location.host;
 const defaultUri = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${defaultHost}/`;
 
+type Agent = "vacancy_prompter" | "question_generator" | "interviewer";
+
 function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
-  const [serverUrl, setServerUrl] = useState<string>(defaultUri);
+  const [serverUrl, setServerUrl] = useState<string>(getAgentUrl("vacancy_prompter"));
   const [userId, setUserId] = useState<string>("user1");
+
+  const [currentAgent, setCurrentAgent] = useState<Agent>("vacancy_prompter");
+  const [vacancyDescription, setVacancyDescription] = useState<string>("");
+  const [generatedQuestions, setGeneratedQuestions] = useState<string>("");
+
+  function getAgentUrl(agent: Agent) {
+    return `${defaultUri}ws/${agent}_agent`;
+  }
+
+  const handleAgentTransition = (nextAgent: Agent, data?: any) => {
+    if (nextAgent === "question_generator") {
+      setVacancyDescription(data);
+    } else if (nextAgent === "interviewer") {
+      setGeneratedQuestions(data);
+    }
+    setCurrentAgent(nextAgent);
+  };
+
+  useEffect(() => {
+    setServerUrl(getAgentUrl(currentAgent));
+  }, [currentAgent]);
 
   return (
     <div className="App">
-      <LiveAPIProvider url={serverUrl} userId={userId}>
+      <LiveAPIProvider url={serverUrl} userId={userId} onAgentTransition={handleAgentTransition} vacancyDescription={vacancyDescription} generatedQuestions={generatedQuestions}>
         <div className="streaming-console">
           <SidePanel 
             videoRef={videoRef}
@@ -43,6 +66,7 @@ function App() {
             userId={userId}
             onServerUrlChange={setServerUrl}
             onUserIdChange={setUserId}
+            currentAgent={currentAgent}
           />
           <main>
             <div className="main-app-area">
@@ -63,3 +87,4 @@ function App() {
 }
 
 export default App;
+

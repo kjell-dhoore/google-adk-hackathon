@@ -40,11 +40,19 @@ export type UseLiveAPIProps = {
   url?: string;
   userId?: string;
   onRunIdChange?: Dispatch<SetStateAction<string>>;
+  onAgentTransition: (nextAgent: "vacancy_prompter" | "question_generator" | "interviewer", data?: any) => void;
+  vacancyDescription: string;
+  generatedQuestions: string;
+  currentAgent: "vacancy_prompter" | "question_generator" | "interviewer";
 };
 
 export function useLiveAPI({
   url,
   userId,
+  onAgentTransition,
+  vacancyDescription,
+  generatedQuestions,
+  currentAgent,
 }: UseLiveAPIProps): UseLiveAPIResults {
   const client = useMemo(
     () => new MultimodalLiveClient({ url, userId }),
@@ -57,8 +65,8 @@ export function useLiveAPI({
 
   // register audio for streaming server -> speakers
   useEffect(() => {
-    if (!audioStreamerRef.current) {
-      audioContext({ id: "audio-out" }).then((audioCtx: AudioContext) => {
+    if (currentAgent === "interviewer" && !audioStreamerRef.current) {
+      audioContext({ id: "audio-out", isVoiceEnabled: true }).then((audioCtx: AudioContext) => {
         audioStreamerRef.current = new AudioStreamer(audioCtx);
         audioStreamerRef.current
           .addWorklet<any>("vumeter-out", VolMeterWorket, (ev: any) => {
@@ -69,7 +77,7 @@ export function useLiveAPI({
           });
       });
     }
-  }, [audioStreamerRef]);
+  }, [audioStreamerRef, currentAgent]);
 
   useEffect(() => {
     const onClose = () => {
@@ -81,24 +89,41 @@ export function useLiveAPI({
     const onAudio = (data: ArrayBuffer) =>
       audioStreamerRef.current?.addPCM16(new Uint8Array(data));
 
+    const onMessage = (message: any) => {
+      if (client.url.includes("vacancy_prompter")) {
+        onAgentTransition("question_generator", message.text);
+      } else if (client.url.includes("question_generator")) {
+        onAgentTransition("interviewer", message.text);
+      }
+    };
+
     client
       .on("close", onClose)
       .on("interrupted", stopAudioStreamer)
-      .on("audio", onAudio);
+      .on("audio", onAudio)
+      .on("message", onMessage);
 
     return () => {
       client
         .off("close", onClose)
         .off("interrupted", stopAudioStreamer)
-        .off("audio", onAudio);
+        .off("audio", onAudio)
+        .off("message", onMessage);
     };
-  }, [client]);
+  }, [client, onAgentTransition]);
 
   const connect = useCallback(async () => {
     client.disconnect();
     await client.connect();
     setConnected(true);
-  }, [client, setConnected]);
+
+    // Send initial data if available
+    if (client.url.includes("question_generator") && vacancyDescription) {
+      client.send(vacancyDescription);
+    } else if (client.url.includes("interviewer") && generatedQuestions) {
+      client.send(generatedQuestions);
+    }
+  }, [client, setConnected, vacancyDescription, generatedQuestions]);
 
   const disconnect = useCallback(async () => {
     client.disconnect();

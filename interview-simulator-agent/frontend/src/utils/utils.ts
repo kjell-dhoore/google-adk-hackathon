@@ -16,6 +16,7 @@
 
 export type GetAudioContextOptions = AudioContextOptions & {
   id?: string;
+  isVoiceEnabled?: boolean;
 };
 
 const map: Map<string, AudioContext> = new Map();
@@ -30,10 +31,12 @@ export const audioContext: (
 
   return async (options?: GetAudioContextOptions) => {
     try {
-      const a = new Audio();
-      a.src =
-        "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
-      await a.play();
+      if (options?.isVoiceEnabled) {
+        const a = new Audio();
+        a.src =
+          "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+        await a.play();
+      }
       if (options?.id && map.has(options.id)) {
         const ctx = map.get(options.id);
         if (ctx) {

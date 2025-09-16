@@ -43,6 +43,7 @@ export type SidePanelProps = {
   userId?: string;
   onServerUrlChange?: (url: string) => void;
   onUserIdChange?: (userId: string) => void;
+  currentAgent: "vacancy_prompter" | "question_generator" | "interviewer";
 };
 
 type MediaStreamButtonProps = {
@@ -75,8 +76,9 @@ function SidePanel({
   userId = "user1",
   onServerUrlChange = () => {},
   onUserIdChange = () => {},
+  currentAgent,
 }: SidePanelProps) {
-  const { connected, client, connect, disconnect, volume } = useLiveAPIContext();
+  const { connected, client, connect, disconnect, volume, onAgentTransition } = useLiveAPIContext();
   const [open, setOpen] = useState(true);
   const [connectionExpanded, setConnectionExpanded] = useState(false);
 
@@ -102,8 +104,19 @@ function SidePanel({
   const [activeVideoStream, setActiveVideoStream] = useState<MediaStream | null>(null);
   const [webcam, screenCapture] = videoStreams;
   const [inVolume, setInVolume] = useState(0);
-  const [audioRecorder] = useState(() => new AudioRecorder());
+  const [audioRecorder, setAudioRecorder] = useState<AudioRecorder | null>(null);
   const [muted, setMuted] = useState(false);
+
+  useEffect(() => {
+    if (currentAgent === "interviewer") {
+      setAudioRecorder(new AudioRecorder());
+    } else {
+      if (audioRecorder) {
+        audioRecorder.stop();
+      }
+      setAudioRecorder(null);
+    }
+  }, [currentAgent]);
   const renderCanvasRef = useRef<HTMLCanvasElement>(null);
   const connectButtonRef = useRef<HTMLButtonElement>(null);
   
@@ -126,6 +139,9 @@ function SidePanel({
   }, [inVolume]);
 
   useEffect(() => {
+    if (!audioRecorder) {
+      return;
+    }
     const onData = (base64: string) => {
       client.sendRealtimeInput([
         {
@@ -247,7 +263,11 @@ function SidePanel({
   }, [client, log]);
 
   const handleSubmit = () => {
-    client.send([{ text: textInput }]);
+    if (currentAgent === "vacancy_prompter") {
+      onAgentTransition("question_generator", textInput);
+    } else {
+      client.send([{ text: textInput }]);
+    }
 
     setTextInput("");
     if (inputRef.current) {
@@ -270,6 +290,18 @@ function SidePanel({
           </button>
         )}
       </header>
+      <div className="agent-info">
+        <h3>
+          {currentAgent === "vacancy_prompter" && "Step 1: Provide Vacancy"}
+          {currentAgent === "question_generator" && "Step 2: Generate Questions"}
+          {currentAgent === "interviewer" && "Step 3: Conduct Interview"}
+        </h3>
+        <p>
+          {currentAgent === "vacancy_prompter" && "Paste the job vacancy description below."}
+          {currentAgent === "question_generator" && "The agent is generating questions based on the vacancy description."}
+          {currentAgent === "interviewer" && "The interview will now begin."}
+        </p>
+      </div>
       
       {/* Connection Settings Section */}
       <section className="connection-settings">
@@ -327,16 +359,18 @@ function SidePanel({
             </span>
           </button>
 
-          <button
-            className={cn("action-button mic-button", { active: !muted })}
-            onClick={() => setMuted(!muted)}
-          >
-            {!muted ? (
-              <span className="material-symbols-outlined filled">mic</span>
-            ) : (
-              <span className="material-symbols-outlined filled">mic_off</span>
-            )}
-          </button>
+          {currentAgent === "interviewer" && (
+            <button
+              className={cn("action-button mic-button", { active: !muted })}
+              onClick={() => setMuted(!muted)}
+            >
+              {!muted ? (
+                <span className="material-symbols-outlined filled">mic</span>
+              ) : (
+                <span className="material-symbols-outlined filled">mic_off</span>
+              )}
+            </button>
+          )}
 
           <div className="action-button no-action outlined">
             <AudioPulse volume={volume} active={connected} hover={false} />

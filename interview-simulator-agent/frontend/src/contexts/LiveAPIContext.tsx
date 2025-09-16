@@ -23,14 +23,22 @@ export type LiveAPIProviderProps = {
   children: ReactNode;
   url?: string;
   userId?: string;
+  onAgentTransition: (nextAgent: "vacancy_prompter" | "question_generator" | "interviewer", data?: any) => void;
+  vacancyDescription: string;
+  generatedQuestions: string;
+  currentAgent: "vacancy_prompter" | "question_generator" | "interviewer";
 };
 
 export const LiveAPIProvider: FC<LiveAPIProviderProps> = ({
   url,
   userId,
   children,
+  onAgentTransition,
+  vacancyDescription,
+  generatedQuestions,
+  currentAgent,
 }) => {
-  const liveAPI = useLiveAPI({ url, userId });
+  const liveAPI = useLiveAPI({ url, userId, onAgentTransition, vacancyDescription, generatedQuestions, currentAgent });
 
   return (
     <LiveAPIContext.Provider value={liveAPI}>

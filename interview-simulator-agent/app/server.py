@@ -13,8 +13,10 @@
 # limitations under the License.
 
 import asyncio
+import importlib
 import json
 import logging
+import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Literal
@@ -30,7 +32,25 @@ from google.genai.types import LiveServerToolCall
 from pydantic import BaseModel
 from websockets.exceptions import ConnectionClosedError
 
-from .agent import MODEL_ID, genai_client, live_connect_config, tool_functions
+
+# Initialize Google Cloud clients
+import google.auth
+import vertexai
+from google import genai
+
+# Constants
+VERTEXAI = os.getenv("VERTEXAI", "true").lower() == "true"
+LOCATION = "us-central1"
+MODEL_ID = "gemini-live-2.5-flash-preview-native-audio"
+
+credentials, project_id = google.auth.default()
+vertexai.init(project=project_id, location=LOCATION)
+
+if VERTEXAI:
+    genai_client = genai.Client(project=project_id, location=LOCATION, vertexai=True)
+else:
+    # API key should be set using GOOGLE_API_KEY environment variable
+    genai_client = genai.Client(http_options={"api_version": "v1alpha"})
 
 app = FastAPI()
 app.add_middleware(
@@ -159,11 +179,15 @@ class GeminiSession:
                 self._tool_tasks.append(task)
 
 
-def get_connect_and_run_callable(websocket: WebSocket) -> Callable:
+def get_connect_and_run_callable(
+    websocket: WebSocket, live_connect_config: types.LiveConnectConfig, tool_functions: dict
+) -> Callable:
     """Create a callable that handles Gemini connection with retry logic.
 
     Args:
         websocket: The client websocket connection
+        live_connect_config: The agent configuration
+        tool_functions: The agent tool functions
 
     Returns:
         Callable: An async function that establishes and manages the Gemini connection
@@ -196,12 +220,26 @@ def get_connect_and_run_callable(websocket: WebSocket) -> Callable:
     return connect_and_run
 
 
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket) -> None:
+@app.websocket("/ws/{agent_name}")
+async def websocket_endpoint(websocket: WebSocket, agent_name: str = "default") -> None:
     """Handle new websocket connections."""
     await websocket.accept()
-    connect_and_run = get_connect_and_run_callable(websocket)
-    await connect_and_run()
+    try:
+        agent_module = importlib.import_module(f"app.agents.{agent_name}_agent")
+        live_connect_config, tool_functions = agent_module.get_config()
+        connect_and_run = get_connect_and_run_callable(
+            websocket, live_connect_config, tool_functions
+        )
+        await connect_and_run()
+    except (ImportError, AttributeError):
+        await websocket.send_json({"status": f"Agent '{agent_name}' not found."})
+        await websocket.close()
+
+
+@app.websocket("/ws")
+async def default_websocket_endpoint(websocket: WebSocket) -> None:
+    """Handle new websocket connections for the default agent."""
+    await websocket_endpoint(websocket, "default")
 
 
 class Feedback(BaseModel):

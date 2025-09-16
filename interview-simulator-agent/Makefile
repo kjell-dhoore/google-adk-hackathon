@@ -36,6 +36,10 @@ backend:
 local-backend:
 	uv run uvicorn app.server:app --host 0.0.0.0 --port 8000 --reload
 
+# Launch backend server for Cloud Shell
+cloud-shell-backend:
+	uv run uvicorn app.server:app --host 0.0.0.0 --port 8000
+
 # Start the frontend UI separately for development (requires backend running separately)
 ui:
 	(cd frontend && PORT=8501 npm start)
