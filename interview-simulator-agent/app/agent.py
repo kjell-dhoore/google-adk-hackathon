@@ -13,11 +13,20 @@
 # limitations under the License.
 
 import os
+from typing import List, Dict, Any
 
 import google.auth
 import vertexai
 from google import genai
 from google.genai import types
+
+from .agents.interview.interview_agent import (
+    start_interview_session,
+    add_interview_questions,
+    get_next_interview_question,
+    record_interview_answer,
+    get_interview_status,
+)
 
 # Constants
 VERTEXAI = os.getenv("VERTEXAI", "true").lower() == "true"
@@ -36,22 +45,14 @@ else:
     genai_client = genai.Client(http_options={"api_version": "v1alpha"})
 
 
-def get_weather(query: str) -> dict:
-    """Simulates a web search. Use it get information on weather.
-
-    Args:
-        query: A string containing the location to get weather information for.
-
-    Returns:
-        A string with the simulated weather information for the queried location.
-    """
-    if "sf" in query.lower() or "san francisco" in query.lower():
-        return {"output": "It's 60 degrees and foggy."}
-    return {"output": "It's 90 degrees and sunny."}
-
-
 # Configure tools available to the agent and live connection
-tool_functions = {"get_weather": get_weather}
+tool_functions = {
+    "start_interview_session": start_interview_session,
+    "add_interview_questions": add_interview_questions,
+    "get_next_interview_question": get_next_interview_question,
+    "record_interview_answer": record_interview_answer,
+    "get_interview_status": get_interview_status,
+}
 
 live_connect_config = types.LiveConnectConfig(
     response_modalities=[types.Modality.AUDIO],
@@ -59,7 +60,16 @@ live_connect_config = types.LiveConnectConfig(
     system_instruction=types.Content(
         parts=[
             types.Part(
-                text="""You are a helpful AI assistant designed to provide accurate and useful information. You are able to accommodate different languages and tones of voice."""
+                text="""You are a helpful AI assistant designed to ask a job candidate a list of predefined questions. You are able to accommodate different languages and tones of voice.
+
+You have the capability to conduct interviews! You should in order:
+- Start interview sessions for candidates applying to specific positions
+- Add questions to interview sessions (technical, behavioral, or other categories)
+- Ask questions one by one during the interview
+
+Only ask questions from the predefined list of questions using the "get_next_interview_question" tool.
+Important: do not ask questions that are not in the predefined list of questions otherwise the application is completely useless.
+When conducting interviews, be professional, encouraging, and focused on gathering meaningful information about the candidate's qualifications and fit for the position. Ask follow-up questions when appropriate to get more detailed responses."""
             )
         ]
     ),

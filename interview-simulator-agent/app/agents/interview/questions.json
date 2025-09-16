@@ -1,0 +1,76 @@
+{
+    "questions": [
+        {
+            "question_id": "q1",
+            "question_text": "Tell me about yourself and your background in software development.",
+            "category": "behavioral",
+            "difficulty": "easy"
+        },
+        {
+            "question_id": "q2",
+            "question_text": "What programming languages are you most comfortable with and why?",
+            "category": "technical",
+            "difficulty": "easy"
+        },
+        {
+            "question_id": "q3",
+            "question_text": "Describe a challenging project you worked on and how you overcame obstacles.",
+            "category": "behavioral",
+            "difficulty": "medium"
+        },
+        {
+            "question_id": "q4",
+            "question_text": "What is your experience with version control systems like Git?",
+            "category": "technical",
+            "difficulty": "medium"
+        },
+        {
+            "question_id": "q5",
+            "question_text": "How do you approach debugging a complex issue in your code?",
+            "category": "technical",
+            "difficulty": "medium"
+        },
+        {
+            "question_id": "q6",
+            "question_text": "Tell me about a time when you had to work with a difficult team member. How did you handle it?",
+            "category": "behavioral",
+            "difficulty": "medium"
+        },
+        {
+            "question_id": "q7",
+            "question_text": "What is your experience with databases and SQL?",
+            "category": "technical",
+            "difficulty": "medium"
+        },
+        {
+            "question_id": "q8",
+            "question_text": "How do you stay updated with the latest technologies and programming trends?",
+            "category": "behavioral",
+            "difficulty": "easy"
+        },
+        {
+            "question_id": "q9",
+            "question_text": "Describe your experience with testing and quality assurance practices.",
+            "category": "technical",
+            "difficulty": "medium"
+        },
+        {
+            "question_id": "q10",
+            "question_text": "Where do you see yourself in your career in the next 5 years?",
+            "category": "behavioral",
+            "difficulty": "easy"
+        },
+        {
+            "question_id": "q11",
+            "question_text": "What is your experience with cloud platforms and deployment?",
+            "category": "technical",
+            "difficulty": "hard"
+        },
+        {
+            "question_id": "q12",
+            "question_text": "How would you design a scalable web application architecture?",
+            "category": "technical",
+            "difficulty": "hard"
+        }
+    ]
+}
