@@ -5,7 +5,7 @@ Coding Agent guidance:
 
 ### Section 1: Project Overview
 
-*   **Project Name:** Agent Starter Pack
+*   **Project Name:** Agent Starter Pack.
 *   **Purpose:** Accelerate development of production-ready GenAI Agents on Google Cloud.
 *   **Tagline:** Production-Ready Agents on Google Cloud, faster.
 
