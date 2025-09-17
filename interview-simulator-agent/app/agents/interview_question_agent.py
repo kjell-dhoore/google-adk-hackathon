@@ -20,8 +20,7 @@ questions that assess the candidate's fit for the role.
 """
 
 import json
-import os
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import google.auth
 import vertexai
@@ -202,9 +201,3 @@ interview_question_agent = SynchronousInterviewQuestionAgent()
 def generate_interview_questions_sync(vacancy_info: Dict, interview_context: Dict) -> Dict:
     """Synchronous function to generate interview questions."""
     return interview_question_agent.generate_questions(vacancy_info, interview_context)
-
-
-def generate_interview_questions_from_vacancy_sync(vacancy_result: Dict) -> Dict:
-    """Synchronous function to generate questions from vacancy agent result."""
-    return interview_question_agent.generate_questions_from_vacancy_result(vacancy_result)
-
