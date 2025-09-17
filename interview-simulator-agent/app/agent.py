@@ -35,21 +35,6 @@ else:
     # API key should be set using GOOGLE_API_KEY environment variable
     genai_client = genai.Client(http_options={"api_version": "v1alpha"})
 
-
-def get_weather(query: str) -> dict:
-    """Simulates a web search. Use it get information on weather.
-
-    Args:
-        query: A string containing the location to get weather information for.
-
-    Returns:
-        A string with the simulated weather information for the queried location.
-    """
-    if "sf" in query.lower() or "san francisco" in query.lower():
-        return {"output": "It's 60 degrees and foggy."}
-    return {"output": "It's 90 degrees and sunny."}
-
-
 def analyze_job_vacancy(job_description: str) -> dict:
     """Analyzes a job vacancy description and extracts structured information.
 
@@ -199,7 +184,6 @@ def analyze_job_and_generate_questions(job_description: str) -> dict:
 
 # Configure tools available to the agent and live connection
 tool_functions = {
-    "get_weather": get_weather,
     "analyze_job_vacancy": analyze_job_vacancy,
     "generate_interview_questions": generate_interview_questions,
     "analyze_job_and_generate_questions": analyze_job_and_generate_questions
