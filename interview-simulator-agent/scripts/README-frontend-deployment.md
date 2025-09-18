@@ -1,10 +1,17 @@
-# Frontend Deployment to Google App Engine
+# Frontend Deployment to Google App Engine Flexible Environment
 
-This directory contains scripts and configurations for deploying the React frontend to Google App Engine as a static site.
+This directory contains scripts and configurations for deploying the React frontend to Google App Engine Flexible Environment with WebSocket proxy support to connect to the backend on Cloud Run.
 
 ## Overview
 
-The deployment script (`deploy-frontend-appengine.sh`) builds the React frontend and deploys it to Google App Engine. This is separate from the main application deployment which uses Google Cloud Run.
+The deployment script (`deploy-frontend-appengine.sh`) builds the React frontend and deploys it to Google App Engine Flexible Environment. The frontend includes a WebSocket proxy to connect to the backend running on Google Cloud Run.
+
+## Why Flexible Environment?
+
+The frontend uses the Flexible Environment to support WebSocket connections to the backend on Cloud Run. This allows for:
+- Real-time communication with the backend
+- WebSocket proxy functionality
+- Better integration with Cloud Run services
 
 ## Prerequisites
 
@@ -35,8 +42,10 @@ The deployment script (`deploy-frontend-appengine.sh`) builds the React frontend
 ### Basic Deployment
 
 ```bash
-# Deploy with your project ID
-./scripts/deploy-frontend-appengine.sh --project-id YOUR_GCP_PROJECT_ID
+# Deploy with your project ID and backend URL
+./scripts/deploy-frontend-appengine.sh \
+  --project-id YOUR_GCP_PROJECT_ID \
+  --backend-url https://your-backend-service-url.run.app
 ```
 
 ### Advanced Usage
@@ -49,11 +58,10 @@ The deployment script (`deploy-frontend-appengine.sh`) builds the React frontend
   --service my-frontend \
   --version v2
 
-# Deploy using flexible environment
+# Deploy with custom backend URL
 ./scripts/deploy-frontend-appengine.sh \
   --project-id my-gcp-project \
-  --environment flexible \
-  --runtime nodejs18
+  --backend-url https://my-backend-service-url.run.app
 
 # Create app.yaml and deploy
 ./scripts/deploy-frontend-appengine.sh \
@@ -74,25 +82,24 @@ The deployment script (`deploy-frontend-appengine.sh`) builds the React frontend
 | `--region` | Google Cloud region | `us-central1` |
 | `--service` | App Engine service name | `frontend` |
 | `--version` | App Engine version | `v1` |
-| `--environment` | App Engine environment | `standard` |
+| `--environment` | App Engine environment | `flexible` |
 | `--runtime` | Runtime for flexible environment | `nodejs18` |
 | `--frontend-dir` | Frontend directory path | `frontend` |
 | `--build-dir` | Build output directory | `build` |
 | `--app-yaml` | App Engine config file | `app.yaml` |
-| `--create-app-yaml` | Create app.yaml if missing | `false` |
+| `--backend-url` | Backend Cloud Run URL for WebSocket proxy | Required for flexible env |
 | `--dry-run` | Show what would be deployed | `false` |
 
-## App Engine Environments
+## App Engine Configuration
 
-### Standard Environment (Default)
-- **Pros**: Faster cold starts, automatic scaling, simpler configuration
-- **Cons**: Limited to specific runtimes, less control over infrastructure
-- **Best for**: Static sites, simple applications
-
-### Flexible Environment
-- **Pros**: Full control over runtime, custom Docker images, persistent disks
-- **Cons**: Slower cold starts, more complex configuration
-- **Best for**: Complex applications, custom requirements
+### Flexible Environment (Default)
+- **Runtime**: Node.js 20
+- **Environment**: Flexible (required for WebSocket proxy)
+- **Scaling**: 1-5 instances with CPU-based scaling
+- **Resources**: 1 CPU, 1GB RAM, 10GB disk
+- **Health Checks**: Readiness and liveness checks
+- **Network**: Port 8080 forwarding for WebSocket support
+- **WebSocket Proxy**: Routes WebSocket connections to Cloud Run backend
 
 ## File Structure
 

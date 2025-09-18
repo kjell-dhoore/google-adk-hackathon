@@ -1,21 +1,48 @@
 # App Engine configuration for React frontend
-# This file is used when deploying the frontend to Google App Engine
+# This file is used when deploying the frontend to Google App Engine Flexible Environment
 
-runtime: nodejs20
+runtime: nodejs
+env: flex
+
+# Service configuration
 service: default
 
-handlers:
-  # Serve static files
-  - url: /static
-    static_dir: build/static
-    secure: always
+runtime_config:
+  operating_system: "ubuntu22"
+  runtime_version: "22"
 
-  # Serve the main index.html for all other routes (SPA routing)
-  - url: /.*
-    static_files: build/index.html
-    upload: build/index.html
-    secure: always
+# Automatic scaling configuration
+automatic_scaling:
+  min_num_instances: 1
+  max_num_instances: 5
+  cpu_utilization:
+    target_utilization: 0.6
 
-# Optional: Set environment variables
+
+# Health check configuration
+readiness_check:
+  path: "/"
+  check_interval_sec: 5
+  timeout_sec: 4
+  failure_threshold: 2
+  success_threshold: 2
+  app_start_timeout_sec: 600
+
+
+liveness_check:
+  path: "/"
+  check_interval_sec: 30
+  timeout_sec: 4
+  failure_threshold: 4
+  success_threshold: 2
+
+# Environment variables
 env_variables:
   NODE_ENV: production
+  BACKEND_URL: https://interview-simulator-agent-615634759127.us-central1.run.app
+
+# Resources
+resources:
+  cpu: 1
+  memory_gb: 1
+  disk_size_gb: 10

@@ -14,8 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Deploy Frontend to Google App Engine
-# This script builds the React frontend and deploys it to Google App Engine as a static site
+# Deploy Frontend to Google App Engine Flexible Environment
+# This script builds the React frontend and deploys it to Google App Engine Flexible Environment
+# The flexible environment is used to support WebSocket connections to the backend on Cloud Run
 
 set -e
 
@@ -23,12 +24,13 @@ set -e
 DEFAULT_PROJECT_ID="qwiklabs-gcp-01-89519aa38551"
 DEFAULT_REGION="us-central1"
 DEFAULT_SERVICE_NAME="frontend"
-DEFAULT_VERSION="v1"
-DEFAULT_ENVIRONMENT="standard"
+DEFAULT_VERSION="v3"
+DEFAULT_ENVIRONMENT="flexible"
 DEFAULT_RUNTIME="nodejs18"
 DEFAULT_FRONTEND_DIR="frontend"
 DEFAULT_BUILD_DIR="build"
 DEFAULT_APP_YAML="app.yaml"
+DEFAULT_BACKEND_URL=""
 
 # Colors for output
 RED='\033[0;31m'
@@ -69,9 +71,10 @@ OPTIONS:
     -e, --environment ENV           App Engine environment: standard|flexible (default: $DEFAULT_ENVIRONMENT)
     -t, --runtime RUNTIME           Runtime for flexible environment (default: $DEFAULT_RUNTIME)
     -f, --frontend-dir DIR          Frontend directory path (default: $DEFAULT_FRONTEND_DIR)
-    -b, --build-dir DIR             Build output directory (default: $DEFAULT_BUILD_DIR)
+    -d, --build-dir DIR             Build output directory (default: $DEFAULT_BUILD_DIR)
     -y, --app-yaml FILE             App Engine configuration file (default: $DEFAULT_APP_YAML)
-    -d, --dry-run                   Show what would be deployed without actually deploying
+    -u, --backend-url URL           Backend Cloud Run URL for WebSocket proxy (required for flexible env)
+    --dry-run                       Show what would be deployed without actually deploying
     -h, --help                      Show this help message
 
 EXAMPLES:
@@ -81,8 +84,8 @@ EXAMPLES:
     # Deploy to a specific region with custom service name
     $0 --project-id my-gcp-project --region europe-west1 --service my-frontend
 
-    # Deploy using flexible environment
-    $0 --project-id my-gcp-project --environment flexible --runtime nodejs18
+    # Deploy using standard environment (alternative)
+    $0 --project-id my-gcp-project --environment standard --runtime nodejs18
 
 
     # Dry run to see what would be deployed
@@ -106,6 +109,7 @@ RUNTIME="$DEFAULT_RUNTIME"
 FRONTEND_DIR="$DEFAULT_FRONTEND_DIR"
 BUILD_DIR="$DEFAULT_BUILD_DIR"
 APP_YAML="$DEFAULT_FRONTEND_DIR/$DEFAULT_APP_YAML"
+BACKEND_URL="$DEFAULT_BACKEND_URL"
 DRY_RUN=false
 
 while [[ $# -gt 0 ]]; do
@@ -146,7 +150,11 @@ while [[ $# -gt 0 ]]; do
             APP_YAML="$2"
             shift 2
             ;;
-        -d|--dry-run)
+        -u|--backend-url)
+            BACKEND_URL="$2"
+            shift 2
+            ;;
+        --dry-run)
             DRY_RUN=true
             shift
             ;;
@@ -172,6 +180,13 @@ fi
 # Validate environment
 if [[ "$ENVIRONMENT" != "standard" && "$ENVIRONMENT" != "flexible" ]]; then
     print_error "Environment must be either 'standard' or 'flexible'"
+    exit 1
+fi
+
+# Validate backend URL for flexible environment
+if [[ "$ENVIRONMENT" == "flexible" && -z "$BACKEND_URL" ]]; then
+    print_error "Backend URL is required for flexible environment. Use -u or --backend-url to specify your Cloud Run backend URL."
+    print_info "Example: --backend-url https://your-backend-service-url.run.app"
     exit 1
 fi
 
@@ -260,15 +275,35 @@ print_success "Frontend build completed"
 cd - > /dev/null
 
 # For flexible environment, we need to create a simple server
+# Note: Frontend now uses flexible environment by default for WebSocket support
 if [[ "$ENVIRONMENT" == "flexible" ]]; then
     print_info "Creating server for flexible environment..."
     
-    # Create a simple Node.js server for flexible environment
+    # Create a Node.js server for flexible environment with WebSocket proxy support
     cat > "server.js" << 'EOF'
 const express = require('express');
 const path = require('path');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 const app = express();
 const port = process.env.PORT || 8080;
+
+// Backend URL - this should point to your Cloud Run backend
+const BACKEND_URL = process.env.BACKEND_URL || '$BACKEND_URL';
+
+// Proxy WebSocket connections to the backend
+app.use('/ws', createProxyMiddleware({
+  target: BACKEND_URL,
+  changeOrigin: true,
+  ws: true,
+  logLevel: 'debug'
+}));
+
+// Proxy API calls to the backend
+app.use('/api', createProxyMiddleware({
+  target: BACKEND_URL,
+  changeOrigin: true,
+  logLevel: 'debug'
+}));
 
 // Serve static files from the build directory
 app.use(express.static(path.join(__dirname, 'build')));
@@ -279,7 +314,8 @@ app.get('*', (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+  console.log(`Frontend server is running on port ${port}`);
+  console.log(`Backend URL: ${BACKEND_URL}`);
 });
 EOF
 
@@ -288,16 +324,17 @@ EOF
 {
   "name": "frontend-server",
   "version": "1.0.0",
-  "description": "Server for React frontend on App Engine",
+  "description": "Server for React frontend on App Engine with WebSocket proxy",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "http-proxy-middleware": "^2.0.6"
   },
   "engines": {
-    "node": "18"
+    "node": "20"
   }
 }
 EOF
@@ -305,6 +342,10 @@ EOF
     # Install express dependency
     print_info "Installing server dependencies..."
     npm install
+    
+    # Update app.yaml with backend URL
+    print_info "Updating app.yaml with backend URL..."
+    sed -i "s|BACKEND_URL_PLACEHOLDER|$BACKEND_URL|g" "$APP_YAML"
 fi
 
 # Show what will be deployed
