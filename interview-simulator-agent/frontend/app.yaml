@@ -1,0 +1,21 @@
+# App Engine configuration for React frontend
+# This file is used when deploying the frontend to Google App Engine
+
+runtime: nodejs20
+service: default
+
+handlers:
+  # Serve static files
+  - url: /static
+    static_dir: build/static
+    secure: always
+
+  # Serve the main index.html for all other routes (SPA routing)
+  - url: /.*
+    static_files: build/index.html
+    upload: build/index.html
+    secure: always
+
+# Optional: Set environment variables
+env_variables:
+  NODE_ENV: production
